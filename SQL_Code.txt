@@ -1,0 +1,57 @@
+%%sql
+postgresql:///animal_shelters
+    WITH costs AS (
+    SELECT animals.animaltype,
+                            CASE WHEN DATE_PART('year', AGE('2021-12-31', TO_DATE(birthdate,'MM/DD/YYYY'))) < 5 THEN 0
+                            WHEN DATE_PART('year', AGE('2021-12-31', TO_DATE(birthdate,'MM/DD/YYYY'))) >=5 AND DATE_PART('year', AGE('2021-12-31', TO_DATE(birthdate,'MM/DD/YYYY')))<8 THEN 100
+                            WHEN DATE_PART('year', AGE('2021-12-31', TO_DATE(birthdate,'MM/DD/YYYY'))) >=8 AND DATE_PART('year', AGE('2021-12-31', TO_DATE(birthdate,'MM/DD/YYYY')))<13 THEN 150
+                            WHEN DATE_PART('year', AGE('2021-12-31', TO_DATE(birthdate,'MM/DD/YYYY'))) >=13 AND DATE_PART('year', AGE('2021-12-31', TO_DATE(birthdate,'MM/DD/YYYY')))<16 THEN 200
+                            WHEN DATE_PART('year', AGE('2021-12-31', TO_DATE(birthdate,'MM/DD/YYYY'))) >=16 THEN 300
+                            ELSE NULL END AS age_cost,
+                            CASE WHEN animals.animaltype='Dog' AND weight <= 10 THEN 'Small'
+                            WHEN animals.animaltype='Dog' AND weight > 30 THEN 'Large'
+                            WHEN animals.animaltype='Dog' AND weight > 10 AND weight <= 30 THEN 'Medium'
+                            WHEN animals.animaltype='Cat' AND weight <= 5 THEN 'Small'
+                            WHEN animals.animaltype='Cat' AND weight > 7 THEN 'Large'
+                            WHEN animals.animaltype='Cat' AND weight > 5 AND weight <= 7 THEN 'Medium'
+                            WHEN animals.animaltype='Bird' AND weight <= 0.7 THEN 'Small'
+                            WHEN animals.animaltype='Bird' AND weight > 1.1 THEN 'Large'
+                            WHEN animals.animaltype='Bird' AND weight > 0.7 AND weight <= 1.1 THEN 'Medium'
+                            ELSE 'OTHER' END AS size,
+                            CASE WHEN animals.animaltype='Dog' AND weight <= 10 THEN 125
+                            WHEN animals.animaltype='Dog' AND weight > 30 THEN 175
+                            WHEN animals.animaltype='Dog' AND weight > 10 AND weight <= 30 THEN 150
+                            WHEN animals.animaltype='Cat' AND weight <= 5 THEN 100
+                            WHEN animals.animaltype='Cat' AND weight > 7 THEN 140
+                            WHEN animals.animaltype='Cat' AND weight > 5 AND weight <= 7 THEN 120
+                            WHEN animals.animaltype='Bird' AND weight <= 0.7 THEN 70
+                            WHEN animals.animaltype='Bird' AND weight > 1.1 THEN 110
+                            WHEN animals.animaltype='Bird' AND weight > 0.7 AND weight <= 1.1 THEN 90
+                            ELSE NULL END AS size_cost,
+                            CASE WHEN animals.location = 'San Antonio' THEN 120
+                            WHEN animals.location = 'Dallas' THEN 110
+                            WHEN animals.location = 'Houston' THEN 140
+                            WHEN animals.location = 'Austin' THEN 135
+                            WHEN animals.location = 'Fort Worth' THEN 100
+                            ELSE 0 END AS location_cost
+    FROM animals
+    LEFT JOIN sponsored_animals ON animals.animalid = sponsored_animals.sponsorid
+    WHERE sponsored_animals.sponsorid IS NULL
+    ),
+costs2 AS(
+SELECT (age_cost+size_cost+location_cost) AS total_cost, animaltype, size
+    FROM Costs
+),
+t1 AS (
+ SELECT costs2.animaltype,
+        costs2.size,
+        SUM(total_cost) AS total 
+FROM costs2
+GROUP BY costs2.animaltype, costs2.size)
+SELECT animaltype, size, total, 
+       ROUND(((0.0+total)/(SUM(total) OVER()))*100,2) AS percentage
+FROM t1
+ORDER BY animaltype, size DESC;
+
+
+
